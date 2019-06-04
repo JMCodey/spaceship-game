@@ -27,61 +27,60 @@ function preload() {
 	this.load.audio('starSound', 'assets/star.mp3');
 }
 
-class create {
-	constructor() {
-		var self = this;
-		this.socket = io();
-		this.cameras.main.setBackgroundColor(0x9ea7a6);
-		this.otherPlayers = this.physics.add.group();
-		this.socket.on('currentPlayers', function (players) {
-			Object.keys(players).forEach(function (id) {
-				if (players[id].playerId === self.socket.id) {
-					addPlayer(self, players[id]);
-				}
-				else {
-					addOtherPlayers(self, players[id]);
-				}
-			});
+function create() {
+
+	var self = this;
+	this.socket = io();
+	this.cameras.main.setBackgroundColor(0x9ea7a6);
+	this.otherPlayers = this.physics.add.group();
+	this.socket.on('currentPlayers', function (players) {
+		Object.keys(players).forEach(function (id) {
+			if (players[id].playerId === self.socket.id) {
+				addPlayer(self, players[id]);
+			}
+			else {
+				addOtherPlayers(self, players[id]);
+			}
 		});
-		this.socket.on('newPlayer', function (playerInfo) {
-			addOtherPlayers(self, playerInfo);
+	});
+	this.socket.on('newPlayer', function (playerInfo) {
+		addOtherPlayers(self, playerInfo);
+	});
+	this.socket.on('disconnect', function (playerId) {
+		self.otherPlayers.getChildren().forEach(function (otherPlayer) {
+			if (playerId === otherPlayer.playerId) {
+				otherPlayer.destroy();
+			}
 		});
-		this.socket.on('disconnect', function (playerId) {
-			self.otherPlayers.getChildren().forEach(function (otherPlayer) {
-				if (playerId === otherPlayer.playerId) {
-					otherPlayer.destroy();
-				}
-			});
+	});
+	this.socket.on('playerMoved', function (playerInfo) {
+		self.otherPlayers.getChildren().forEach(function (otherPlayer) {
+			if (playerInfo.playerId === otherPlayer.playerId) {
+				otherPlayer.setRotation(playerInfo.rotation);
+				otherPlayer.setPosition(playerInfo.x, playerInfo.y);
+			}
 		});
-		this.socket.on('playerMoved', function (playerInfo) {
-			self.otherPlayers.getChildren().forEach(function (otherPlayer) {
-				if (playerInfo.playerId === otherPlayer.playerId) {
-					otherPlayer.setRotation(playerInfo.rotation);
-					otherPlayer.setPosition(playerInfo.x, playerInfo.y);
-				}
-			});
-		});
-		this.cursors = this.input.keyboard.createCursorKeys();
-		this.blueScoreText = this.add.text(16, 16, '', { fontSize: '32px', fill: '#0000FF' });
-		this.redScoreText = this.add.text(584, 16, '', { fontSize: '32px', fill: '#FF0000' });
-		this.counterPlayersText = this.add.text(300, 550, '', { fontSize: '48px', fill: '#2f2f2f' });
-		this.socket.on('playersUpdate', function (countPlayers) {
-			self.counterPlayersText.setText('Graczy w grze: ' + countPlayers);
-		});
-		this.socket.on('scoreUpdate', function (scores) {
-			self.blueScoreText.setText('Blue: ' + scores.blue);
-			self.redScoreText.setText('Red: ' + scores.red);
-		});
-		this.socket.on('starLocation', function (starLocation) {
-			if (self.star)
-				self.star.destroy();
-			self.star = self.physics.add.image(starLocation.x, starLocation.y, 'star');
-			self.physics.add.overlap(self.ship, self.star, function () {
-				this.socket.emit('starCollected');
-				game.sound.play('starSound');
-			}, null, self);
-		});
-	}
+	});
+	this.cursors = this.input.keyboard.createCursorKeys();
+	this.blueScoreText = this.add.text(16, 16, '', { fontSize: '32px', fill: '#0000FF' });
+	this.redScoreText = this.add.text(584, 16, '', { fontSize: '32px', fill: '#FF0000' });
+	this.counterPlayersText = this.add.text(300, 550, '', { fontSize: '48px', fill: '#2f2f2f' });
+	this.socket.on('playersUpdate', function (countPlayers) {
+		self.counterPlayersText.setText('Graczy w grze: ' + countPlayers);
+	});
+	this.socket.on('scoreUpdate', function (scores) {
+		self.blueScoreText.setText('Blue: ' + scores.blue);
+		self.redScoreText.setText('Red: ' + scores.red);
+	});
+	this.socket.on('starLocation', function (starLocation) {
+		if (self.star)
+			self.star.destroy();
+		self.star = self.physics.add.image(starLocation.x, starLocation.y, 'star');
+		self.physics.add.overlap(self.ship, self.star, function () {
+			this.socket.emit('starCollected');
+			game.sound.play('starSound');
+		}, null, self);
+	});
 }
 
 function addPlayer(self, playerInfo) {
