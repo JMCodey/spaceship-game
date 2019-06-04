@@ -18,5 +18,6 @@ var game = new Phaser.Game(config);
 
 game.scene.add('play', PlayScene);
 game.scene.add('menu', MenuScene);
+game.scene.add('fullGame', FullGameScene);
 
 game.scene.start('menu');

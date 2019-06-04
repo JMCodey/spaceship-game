@@ -12,8 +12,14 @@ var scores = {
 	blue: 0,
 	red: 0
 };
-var countPlayers = 0;
-
+var numPlayers = {
+	counter: 0,
+	max: 4
+};
+var teams = {
+	blue: 0,
+	red: 0
+}
 app.use(express.static(__dirname + '/public'));
 
 app.get('/', function (req, res) {
@@ -22,38 +28,48 @@ app.get('/', function (req, res) {
 
 io.on('connection', function (socket) {
 	console.log('a user connected: ', socket.id);
-	countPlayers++;
+	numPlayers.counter++;
+
+	if (numPlayers.counter <= numPlayers.max) {
+		// create a new player and add it to our players object
+		players[socket.id] = {
+			rotation: 0,
+			x: Math.floor(Math.random() * 700) + 50,
+			y: Math.floor(Math.random() * 500) + 50,
+			playerId: socket.id,
+			team: getTeamWithLessPlayers()
+		};
 
 
-	// create a new player and add it to our players object
-	players[socket.id] = {
-		rotation: 0,
-		x: Math.floor(Math.random() * 700) + 50,
-		y: Math.floor(Math.random() * 500) + 50,
-		playerId: socket.id,
-		team: (Math.floor(Math.random() * 2) == 0) ? 'red' : 'blue'
-	};
+		// send the players object to the new player
+		socket.emit('currentPlayers', players);
+		// send the star object to the new player
+		socket.emit('starLocation', star);
+		// send the current scores
+		socket.emit('playersUpdate', numPlayers);
+		// update all other players of the new player
+		socket.broadcast.emit('newPlayer', players[socket.id]);
 
-	// send the players object to the new player
-	socket.emit('currentPlayers', players);
-	// send the star object to the new player
-	socket.emit('starLocation', star);
-	// send the current scores
-	socket.emit('playersUpdate', countPlayers);
-	// update all other players of the new player
-	socket.broadcast.emit('newPlayer', players[socket.id]);
+		socket.broadcast.emit('playersUpdate', numPlayers);
+	} else {
+		socket.emit('gameIsFull', numPlayers.max);
+	}
 
-	socket.broadcast.emit('playersUpdate', countPlayers);
 	// when a player disconnects, remove them from our players object
 	socket.on('disconnect', function () {
 		console.log('user disconnected: ', socket.id);
-		countPlayers--;
-		if (countPlayers === 0) {
+		numPlayers.counter--;
+		if (numPlayers.counter === 0) {
 			scores.blue = 0;
 			scores.red = 0;
 		}
+		if (players[socket.id].team === 'blue') {
+			teams.blue--;
+		} else {
+			teams.red--;
+		}
 		delete players[socket.id];
-		socket.broadcast.emit('playersUpdate', countPlayers);
+		socket.broadcast.emit('playersUpdate', numPlayers);
 		// emit a message to all players to remove this player
 		io.emit('disconnect', socket.id);
 	});
@@ -64,7 +80,6 @@ io.on('connection', function (socket) {
 	socket.on('playerMovement', function (movementData) {
 		players[socket.id].x = movementData.x;
 		players[socket.id].y = movementData.y;
-		//players[socket.id].rotation = movementData.rotation;
 		// emit a message to all players about the player that moved
 		socket.broadcast.emit('playerMoved', players[socket.id]);
 	});
@@ -85,3 +100,13 @@ io.on('connection', function (socket) {
 server.listen(8081, function () {
 	console.log(`Listening on ${server.address().port}`);
 });
+
+function getTeamWithLessPlayers() {
+	if (teams.blue > teams.red) {
+		teams.red++;
+		return 'red';
+	} else {
+		teams.blue++;
+		return 'blue';
+	}
+}
