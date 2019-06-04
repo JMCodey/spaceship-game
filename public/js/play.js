@@ -12,6 +12,10 @@ class PlayScene extends Phaser.Scene {
 	create() {
 		var self = this;
 		this.socket = io();
+		this.socket.on('gameIsFull', maxNumberOfPlayers => {
+			game.scene.start('fullGame', { max: maxNumberOfPlayers });
+			game.scene.remove(this.scene.key);
+		})
 		this.cameras.main.setBackgroundColor(0x9ea7a6);
 		this.otherPlayers = this.physics.add.group();
 
@@ -49,10 +53,10 @@ class PlayScene extends Phaser.Scene {
 		this.cursors = this.input.keyboard.createCursorKeys();
 		this.blueScoreText = this.add.text(16, 16, '', { fontSize: '32px', fill: '#0000FF' });
 		this.redScoreText = this.add.text(584, 16, '', { fontSize: '32px', fill: '#FF0000' });
-		this.counterPlayersText = this.add.text(300, 550, '', { fontSize: '48px', fill: '#2f2f2f' });
+		this.counterPlayersText = this.add.text(300, 550, '', { fontSize: '36px', fill: '#2f2f2f' });
 
-		this.socket.on('playersUpdate', function (countPlayers) {
-			self.counterPlayersText.setText('Graczy w grze: ' + countPlayers);
+		this.socket.on('playersUpdate', function (numPlayers) {
+			self.counterPlayersText.setText(`Graczy w grze: ${numPlayers.counter}/${numPlayers.max}`);
 		});
 
 		this.socket.on('scoreUpdate', function (scores) {
